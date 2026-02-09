@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  users     User[]
+  players   Player[]
+  events    Event[]
+  createdAt DateTime @default(now())
+}
+
+model Player {
+  id        String         @id @default(uuid())
+  name      String
+  whatsapp  String
+  role      PlayerRole
+  location  String
+  active    Boolean        @default(true)
+  teamId    String
+  team      Team           @relation(fields: [teamId], references: [id])
+  responses PollResponse[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+enum PlayerRole {
+  BATSMAN
+  BOWLER
+  ALL_ROUNDER
+  WICKET_KEEPER
+}
+
+model Event {
+  id              String    @id @default(uuid())
+  type            EventType
+  opponent        String?
+  venue           String
+  dateTime        DateTime
+  requiredPlayers Int       @default(11)
+  teamId          String
+  team            Team      @relation(fields: [teamId], references: [id])
+  poll            Poll?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+enum EventType {
+  MATCH
+  TRAINING
+}
+
+model Poll {
+  id            String         @id @default(uuid())
+  eventId       String         @unique
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pollsSent     Boolean        @default(false)
+  remindersSent Int            @default(0)
+  maxReminders  Int            @default(2)
+  reminderHours Int[]          @default([24, 12])
+  responses     PollResponse[]
+  messageLogs   MessageLog[]
+  createdAt     DateTime       @default(now())
+}
+
+model PollResponse {
+  id        String       @id @default(uuid())
+  pollId    String
+  poll      Poll         @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  playerId  String
+  player    Player       @relation(fields: [playerId], references: [id])
+  response  ResponseType
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([pollId, playerId])
+}
+
+enum ResponseType {
+  AVAILABLE
+  NOT_AVAILABLE
+  MAYBE
+}
+
+model MessageLog {
+  id        String      @id @default(uuid())
+  pollId    String
+  poll      Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  playerId  String
+  direction MessageDir
+  type      MessageType
+  body      String
+  status    String
+  twilioSid String?
+  createdAt DateTime    @default(now())
+}
+
+enum MessageDir {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageType {
+  POLL
+  REMINDER
+  CONFIRMATION
+}
